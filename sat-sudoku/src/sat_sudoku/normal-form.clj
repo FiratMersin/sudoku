@@ -43,6 +43,22 @@
     (['and false a] :seq) false
     ;; (and a false) -> false
     (['and a false] :seq) false
+    ;; *** simplification de l'implication ==> ***
+    ;;(==> true true) -> true
+    (['==> true true] :seq) true
+    ;;(==> true false) -> false
+    (['==> true false] :seq) false
+    ;;(==> false a) -> true
+    (['==> false a] :seq) true
+    ;; *** simplification de l'équivalence <=> ***
+    ;;(<=> true true) -> true
+    (['<=> true true] :seq) true
+    ;;(<=> true false) -> false
+    (['<=> true false] :seq) false
+    ;;(<=> false true) -> false
+    (['<=> false true] :seq) false
+    ;;(<=> false false) -> true
+    (['<=> false false] :seq) true
     :else f))
 
 (simplify-one '(not true))
@@ -64,6 +80,10 @@
 
 (simplify '(not (or true (not false))))
 
+(simplify '(==> (or true (not false)) false))
+
+(simplify '(<=> (not (or true (not false))) false))
+
 ;;; ## Forme normale NNF
 
 (defn nnf' [f]
@@ -81,6 +101,16 @@
     ;; or ..
     (['or a b] :seq) (list 'or (nnf' a) (nnf' b))
     ;; TODO ==> et <=>
+    ;; not ==> a b  -> (and (nnf a) (nnf (not b)))
+    (['not (['==> a b] :seq)] :seq) (list 'and (nnf a) (nnf (list 'not b)))
+    ;; ==> a b  -> (or (nnf (not a)) (nnf b))
+    (['==> a b] :seq) (list 'or (nnf (list 'not a)) (nnf b))
+    ;; not <=> a b -> (or (and (nnf (not a)) (nnf b)) (and (nnf a) (nnf (not b))))
+    (['not (['<=> a b] :seq)] :seq)
+         (list 'or (list 'and (nnf (list 'not a)) (nnf b)) (list 'and (nnf a) (nnf (list 'not b))))
+    ;; <=> a b -> (and (or (nnf (not a)) (nnf b)) (or (nnf a) (nnf (not b))))
+    (['<=> a b] :seq)
+         (list 'and (list 'or (nnf (list 'not a)) (nnf b)) (list 'or (nnf a) (nnf (list 'not b))))
     :else f))
 
 (nnf' '(not (or true (not false))))
@@ -88,6 +118,8 @@
                     (and (or (not x) false)
                          (or (not false) x))))
            (not (or y (and false z)))))
+
+(nnf' '(==> (or a b) (<=> c d)))
 
 (simplify '(or (not (or (not true)
                     (and (or (not x) false)
@@ -98,6 +130,9 @@
                               (and (or (not x) false)
                                    (or (not false) x))))
                      (not (or y (and false z))))))
+
+
+
 
 (defn nnf [f]
   (nnf' (simplify f)))
@@ -127,6 +162,8 @@
   (dnf' (nnf f)))
 
 (dnf '(and (or a (and b c)) (or (not a) (not c))))
+
+(and true true true false)
 
 ;;; Problème : c'est pas lisible et c'est simplifiable
 ;;; Solution : représentation sous forme d'ensemble (conjonctif) de clauses (disjonctives)
@@ -180,12 +217,22 @@
          (['or a] :seq) (dnf a)
          :else res))))
 
-(filter-trivial '(or (and a (not a)) (and a (not b))))
+(filter-trivial '(or (and a (not a)) (or (and a (not b)) a)))
 
 ;; EXERCICE : si on a une clause C1 incluse dans une clause C2
 ;; (par exemple: #{a (not b)}   et  #{a (not b) c})
 ;; alors on retire la plus grande C2 ..
 ;; fonction :  filter-subsume
+
+
+
+(defn filter-subsume-aux [setf]
+  (loop [setf setf, res setf, i (dec (count setf))]
+    (if (zero? i)
+      res
+      (
+
+
 
 (defn filter-subsume [f]
   (let [setf (setify-dnf f)]
